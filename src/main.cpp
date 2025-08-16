@@ -5,8 +5,11 @@
 
 //lib
 #include "vec.h"
+#include "rgb.h"
 
 using namespace std;
+
+float2 A={20,15},B={40, 40},C={80, 25};
 
 int SCREEN_WIDTH,SCREEN_HEIGHT;
 chrono::steady_clock::time_point start_time;
@@ -21,35 +24,65 @@ void getTerminalSize(int &x, int &y) {
     x = w.ws_col;
 }
 
+float PointIsOnRightSideOfLine(float2 a, float2 b, float2 p){ // res<0 == true
+    b-=a;
+    p-=a;
+    return (b.x*p.y) - (p.x*b.y);
+}
+
+bool PointIsInsideTriangle(float2 a, float2 b, float2 c, float2 p){
+    return PointIsOnRightSideOfLine(a, b, p)<0 &&
+           PointIsOnRightSideOfLine(b, c, p)<0 &&
+           PointIsOnRightSideOfLine(c, a, p)<0;
+}
+
 void build_line (int yb, int ye, vector<string>& buffer) {
-    int lr=1,lg=1,lb=1;
+    color last_pixel, last_pixel2;
     for(int y = yb; y < ye; y++){
         string &line = buffer[SCREEN_HEIGHT - 1 - y];
         line.clear();
+        line += "\x1b[38;2;1;1;1m\x1b[48;2;1;1;1m";
         for(int x = 0; x < SCREEN_WIDTH; x++){
+            color pixel(1,1,1),pixel2(1,1,1);
+
+            if(PointIsInsideTriangle(A, B, C, {(float)x,(float)y})){
+                pixel.r=255;
+                pixel.g=255;
+                pixel.b=255;
+            }
+            if(PointIsInsideTriangle(A, B, C, {(float)x,(float)y+0.5f})){
+                pixel2.r=255;
+                pixel2.g=255;
+                pixel2.b=255;
+            }
+
+            /*
             int r = (int)((float)x/SCREEN_WIDTH*255);
             int g = (int)((float)y/SCREEN_HEIGHT*255);
             //int g2 = (int)((float)(y+0.5f)/SCREEN_HEIGHT*255);
             int b = (sin(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock-start_time).count()/1000.0)+1.0)*255/2;
+            */
+
+
             if(x==0){
-                lr=r;lg=g;lb=b;
+                last_pixel = pixel;
+                //last_pixel2 = pixel2;
             }
             else{
-                int dr = r - lr;
-                int dg = g - lg;
-                int db = b - lb;
-                int rmean = (r + lr) >> 1;
-                int dist2 = ((512 + rmean) * dr * dr) + (1024 * dg * dg) + ((512 + (255 - rmean)) * db * db);
+                int dist_sq = ColorDifferenceSquared(pixel, last_pixel);
+                int dist_sq2 = ColorDifferenceSquared(pixel2, last_pixel2);
 
-                if(dist2<threshold){
-                    line += "█";
-                    continue;
+                if(dist_sq>threshold){
+                    line += "\x1b[38;2;"+to_string(pixel.r)+";"+to_string(pixel.g)+";"+to_string(pixel.b)+"m";
+                    last_pixel = pixel;
                 }
-                else{
-                    lr=r;lg=g;lb=b;
+                if(dist_sq2>threshold){
+                    line += "\x1b[48;2;"+to_string(pixel2.r)+";"+to_string(pixel2.g)+";"+to_string(pixel2.b)+"m";
+                    last_pixel2 = pixel2;
                 }
+
             }
-            line += "\x1b[38;2;"+to_string(r)+";"+to_string(g)+";"+to_string(b)+"m█";
+            line += "▄";
         }
     }
 };

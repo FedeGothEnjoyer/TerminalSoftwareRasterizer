@@ -12,9 +12,21 @@ struct float2 {
         return {x + other.x, y + other.y};
     }
 
+    float2& operator+=(const float2& other) {
+        x += other.x;
+        y += other.y;
+        return *this;
+    }
+
     // Subtraction
     float2 operator-(const float2& other) const {
         return {x - other.x, y - other.y};
+    }
+
+    float2& operator-=(const float2& other) {
+        x -= other.x;
+        y -= other.y;
+        return *this;
     }
 
     // Scalar multiplication
