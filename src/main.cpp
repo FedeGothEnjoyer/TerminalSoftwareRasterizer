@@ -4,7 +4,7 @@
 #include <boost/algorithm/string/join.hpp>
 
 //lib
-//#include "vec.h"
+#include "vec.h"
 
 using namespace std;
 
