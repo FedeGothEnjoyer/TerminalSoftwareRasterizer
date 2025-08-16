@@ -40,3 +40,6 @@ main
 
 # debug information files
 *.dwo
+
+# cmake
+/build/

@@ -3,6 +3,9 @@
 #include <thread>
 #include <boost/algorithm/string/join.hpp>
 
+//lib
+//#include "vec.h"
+
 using namespace std;
 
 int SCREEN_WIDTH,SCREEN_HEIGHT;
@@ -26,9 +29,8 @@ void build_line (int yb, int ye, vector<string>& buffer) {
         for(int x = 0; x < SCREEN_WIDTH; x++){
             int r = (int)((float)x/SCREEN_WIDTH*255);
             int g = (int)((float)y/SCREEN_HEIGHT*255);
-            int g2 = (int)((float)(y+0.5f)/SCREEN_HEIGHT*255);
+            //int g2 = (int)((float)(y+0.5f)/SCREEN_HEIGHT*255);
             int b = (sin(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock-start_time).count()/1000.0)+1.0)*255/2;
-            
             if(x==0){
                 lr=r;lg=g;lb=b;
             }
@@ -47,15 +49,12 @@ void build_line (int yb, int ye, vector<string>& buffer) {
                     lr=r;lg=g;lb=b;
                 }
             }
-
-
             line += "\x1b[38;2;"+to_string(r)+";"+to_string(g)+";"+to_string(b)+"m█";
         }
     }
 };
 
 int main(){
-    
     std::cout << "\x1b[?25l"; //hide cursor
 
     string output;
@@ -74,23 +73,7 @@ int main(){
             cur_frame = 0;
         }
 
-
         vector<string> buffer(SCREEN_HEIGHT);
-/*
-        auto build_line = [&](int y) {
-            string line = "";
-            for(int x = 0; x < SCREEN_WIDTH; x++){
-                int r = (int)((float)x/SCREEN_WIDTH*255);
-                int g = (int)((float)y/SCREEN_HEIGHT*255);
-                int g2 = (int)((float)(y+0.5f)/SCREEN_HEIGHT*255);
-                int b = (sin(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock-start_time).count()/1000.0)+1.0)*255/2;
-                
-                line += "\x1b[38;2;"+to_string(r)+";"+to_string(g)+";"+to_string(b)+";48;2;"+to_string(r)+";"+to_string(g2)+";"+to_string(b)+"m▄";
-            }
-            buffer[SCREEN_HEIGHT-3 - y] = std::move(line);
-        };
-*/
-
 
         int CORES = 12;
 
@@ -112,21 +95,6 @@ int main(){
         for(auto &i:buffer) output += i;
         cout << output;
         cout.flush();
-/*
-
-        cout << "\x1b[H";
-        cout << SCREEN_WIDTH << "x" << SCREEN_HEIGHT << " " << cur_fps << "                                              \n";
-        output.clear();
-        for(int y = SCREEN_HEIGHT-3; y >= 0; y--){
-            for(int x = 0; x < SCREEN_WIDTH; x++){
-                int r = (int)((float)x/SCREEN_WIDTH*255);
-                int b = (int)((float)y/SCREEN_HEIGHT*255);
-                int b2 = (int)((float)(y+0.5f)/SCREEN_HEIGHT*255);
-                output += "\x1b[38;2;"+to_string(r)+";"+to_string(b)+";"+to_string(0)+";48;2;"+to_string(r)+";"+to_string(b2)+";1m▄";
-            }
-        }
-        cout << output << "\x1b[0m";
-*/
     }
 
     return 0;
