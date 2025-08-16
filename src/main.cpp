@@ -1,7 +1,6 @@
 #include <bits/stdc++.h>
 #include <sys/ioctl.h>
 #include <thread>
-#include <boost/algorithm/string/join.hpp>
 
 //lib
 #include "vec.h"
@@ -9,7 +8,9 @@
 
 using namespace std;
 
-float2 A={20,15},B={40, 40},C={80, 25};
+constexpr float FP_EPSILON = 1e-6f;
+
+float2 A={15,5},B={60, 50},C={80, 25},D={150,15};
 
 int SCREEN_WIDTH,SCREEN_HEIGHT;
 chrono::steady_clock::time_point start_time;
@@ -30,10 +31,20 @@ float PointIsOnRightSideOfLine(float2 a, float2 b, float2 p){ // res<0 == true
     return (b.x*p.y) - (p.x*b.y);
 }
 
+bool EdgeIsTopLeft(const float2 &a, const float2 &b) {
+    float dx = b.x - a.x;
+    float dy = b.y - a.y;
+    return (dy > 0.0f) || (fabsf(dy) < FP_EPSILON && dx < 0.0f);
+}
+
 bool PointIsInsideTriangle(float2 a, float2 b, float2 c, float2 p){
-    return PointIsOnRightSideOfLine(a, b, p)<0 &&
-           PointIsOnRightSideOfLine(b, c, p)<0 &&
-           PointIsOnRightSideOfLine(c, a, p)<0;
+    float ab = PointIsOnRightSideOfLine(a, b, p);
+    float bc = PointIsOnRightSideOfLine(b, c, p);
+    float ca = PointIsOnRightSideOfLine(c, a, p);
+
+    return (ab<0||(EdgeIsTopLeft(a,b)&&ab<FP_EPSILON)) &&
+           (bc<0||(EdgeIsTopLeft(b,c)&&bc<FP_EPSILON)) &&
+           (ca<0||(EdgeIsTopLeft(c,a)&&ca<FP_EPSILON));
 }
 
 void build_line (int yb, int ye, vector<string>& buffer) {
@@ -46,14 +57,28 @@ void build_line (int yb, int ye, vector<string>& buffer) {
             color pixel(1,1,1),pixel2(1,1,1);
 
             if(PointIsInsideTriangle(A, B, C, {(float)x,(float)y})){
-                pixel.r=255;
-                pixel.g=255;
-                pixel.b=255;
+                pixel.r=(int)((float)x/SCREEN_WIDTH*255);
+                pixel.g=(int)((float)y/SCREEN_HEIGHT*255);
+                pixel.b=(sin(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock-start_time).count()/1000.0)+1.0)*255/2;
             }
             if(PointIsInsideTriangle(A, B, C, {(float)x,(float)y+0.5f})){
-                pixel2.r=255;
-                pixel2.g=255;
-                pixel2.b=255;
+                pixel2.r=(int)((float)x/SCREEN_WIDTH*255);
+                pixel2.g=(int)((float)(y+0.5f)/SCREEN_HEIGHT*255);
+                pixel2.b=(sin(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock-start_time).count()/1000.0)+1.0)*255/2;
+            }
+
+            if(PointIsInsideTriangle(B, D, C, {(float)x,(float)y})){
+                pixel = color(255,1,1);
+            }
+            if(PointIsInsideTriangle(B, D, C, {(float)x,(float)y+0.5f})){
+                pixel2 = color(255,1,1);
+            }
+
+            if(PointIsInsideTriangle(A, C, D, {(float)x,(float)y})){
+                pixel = color(1,255,1);
+            }
+            if(PointIsInsideTriangle(A, C, D, {(float)x,(float)y+0.5f})){
+                pixel2 = color(1,255,1);
             }
 
             /*
@@ -66,7 +91,7 @@ void build_line (int yb, int ye, vector<string>& buffer) {
 
             if(x==0){
                 last_pixel = pixel;
-                //last_pixel2 = pixel2;
+                last_pixel2 = pixel2;
             }
             else{
                 int dist_sq = ColorDifferenceSquared(pixel, last_pixel);
@@ -105,6 +130,15 @@ int main(){
             cur_fps = cur_frame*2;
             cur_frame = 0;
         }
+
+        ////////////////////////////////////////////
+
+
+        C.x = 80.0f+(sin(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - start_time).count()/500.0f))*20.0f;
+
+
+
+        ////////////////////////////////////////////
 
         vector<string> buffer(SCREEN_HEIGHT);
 
