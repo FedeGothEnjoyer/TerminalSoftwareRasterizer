@@ -42,9 +42,9 @@ bool PointIsInsideTriangle(float2 a, float2 b, float2 c, float2 p){
     float bc = PointIsOnRightSideOfLine(b, c, p);
     float ca = PointIsOnRightSideOfLine(c, a, p);
 
-    return (ab<0||(EdgeIsTopLeft(a,b)&&ab<FP_EPSILON)) &&
-           (bc<0||(EdgeIsTopLeft(b,c)&&bc<FP_EPSILON)) &&
-           (ca<0||(EdgeIsTopLeft(c,a)&&ca<FP_EPSILON));
+    return (ab<0||(EdgeIsTopLeft(a,b)&&ab==0)) &&
+           (bc<0||(EdgeIsTopLeft(b,c)&&bc==0)) &&
+           (ca<0||(EdgeIsTopLeft(c,a)&&ca==0));
 }
 
 void build_line (int yb, int ye, vector<string>& buffer) {
@@ -105,7 +105,6 @@ void build_line (int yb, int ye, vector<string>& buffer) {
                     line += "\x1b[48;2;"+to_string(pixel2.r)+";"+to_string(pixel2.g)+";"+to_string(pixel2.b)+"m";
                     last_pixel2 = pixel2;
                 }
-
             }
             line += "▄";
         }
@@ -134,7 +133,8 @@ int main(){
         ////////////////////////////////////////////
 
 
-        C.x = 80.0f+(sin(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - start_time).count()/500.0f))*20.0f;
+        C.x = 70.0f+(sin(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - start_time).count()/500.0f))*20.0f;
+        C.y = 25.0f+(sin(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - start_time).count()/500.0f+1.0f))*12.0f;
 
 
 
@@ -142,7 +142,7 @@ int main(){
 
         vector<string> buffer(SCREEN_HEIGHT);
 
-        int CORES = 12;
+        int CORES = 6;
 
         int renderheight = SCREEN_HEIGHT-1;
         int block_size = renderheight / CORES;
@@ -158,7 +158,7 @@ int main(){
         output.reserve(SCREEN_WIDTH * (SCREEN_HEIGHT - 1) * 23 + 196); // guess a safe size
 
         output += "\x1b[H\x1b[?25l";
-        output += "\x1b[39;49m" + to_string(SCREEN_WIDTH) + "x" + to_string(SCREEN_HEIGHT*2) + " " + to_string(cur_fps) + " \x1b[K\n";
+        output += "\x1b[39;49m" + to_string(SCREEN_WIDTH) + "x" + to_string(SCREEN_HEIGHT*2) + " " + to_string(cur_fps) + "\x1b[K\n";
         for(auto &i:buffer) output += i;
         cout << output;
         cout.flush();
