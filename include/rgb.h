@@ -6,7 +6,7 @@ struct color {
     color(int _r, int _g, int _b) : r(_r), g(_g), b(_b) {}
 };
 
-int ColorDifferenceSquared(color a, color b){
+inline int ColorDifferenceSquared(color a, color b){
     int dr = a.r - b.r;
     int dg = a.g - b.g;
     int db = a.b - b.b;

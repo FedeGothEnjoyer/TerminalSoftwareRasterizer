@@ -13,4 +13,5 @@ include_directories(include)
 
 add_executable(SoRaCLI
     src/main.cpp
+    src/img.cpp
 )

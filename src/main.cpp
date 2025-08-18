@@ -1,10 +1,10 @@
 #include <bits/stdc++.h>
 #include <sys/ioctl.h>
-#include <charconv> // put at top of file
 
 //lib
 #include "vec.h"
 #include "rgb.h"
+#include "img.h"
 
 using namespace std;
 
@@ -12,6 +12,8 @@ constexpr float FP_EPSILON = 1e-6f;
 constexpr int CORES = 12;
 
 float2 A={15,5},B={60, 50},C={80, 25},D={150,15};
+
+
 
 int SCREEN_WIDTH,SCREEN_HEIGHT;
 chrono::steady_clock::time_point start_time;
@@ -69,29 +71,25 @@ void build_line (int yb, int ye, vector<string>& buffer, int id) {
             for(int x = 0; x < sw; ++x){
                 color pixel(1,1,1), pixel2(1,1,1);
 
-                if(PointIsInsideTriangle(A, B, C, {(float)x,(float)y})){
-                    pixel.r = (int)((float)x/sw*255);
-                    pixel.g = (int)((float)y/SCREEN_HEIGHT*255);
-                    pixel.b = 1;
+                if(PointIsInsideTriangle(A, B, C, {(float)x+0.5f,(float)y+0.25f})){
+                    pixel = color(1,1,255);
                 }
-                if(PointIsInsideTriangle(A, B, C, {(float)x,(float)y+0.5f})){
-                    pixel2.r = (int)((float)x/sw*255);
-                    pixel2.g = (int)((float)(y+0.5f)/SCREEN_HEIGHT*255);
-                    pixel2.b = 1;
+                if(PointIsInsideTriangle(A, B, C, {(float)x+0.5f,(float)y+0.75f})){
+                    pixel2 = color(1,1,255);
                 }
-
-                if(PointIsInsideTriangle(B, D, C, {(float)x,(float)y})){
+                if(PointIsInsideTriangle(B, D, C, {(float)x+0.5f,(float)y+0.25f})){
                     pixel = color(255,1,1);
                 }
-                if(PointIsInsideTriangle(B, D, C, {(float)x,(float)y+0.5f})){
+                if(PointIsInsideTriangle(B, D, C, {(float)x+0.5f,(float)y+0.75f})){
                     pixel2 = color(255,1,1);
                 }
-                if(PointIsInsideTriangle(A, C, D, {(float)x,(float)y})){
+                if(PointIsInsideTriangle(A, C, D, {(float)x+0.5f,(float)y+0.25f})){
                     pixel = color(1,255,1);
                 }
-                if(PointIsInsideTriangle(A, C, D, {(float)x,(float)y+0.5f})){
+                if(PointIsInsideTriangle(A, C, D, {(float)x+0.5f,(float)y+0.75f})){
                     pixel2 = color(1,255,1);
                 }
+                
 
                 if(x == 0){
                     last_pixel = pixel;
@@ -154,7 +152,7 @@ int main(){
     for(auto &line:buffer) line.reserve(SCREEN_WIDTH * 34 + 32);
     array<thread,CORES> threads;
 
-    output.reserve(SCREEN_WIDTH * (SCREEN_HEIGHT - 1) * 34 + 196); // guess a safe size
+    output.reserve(SCREEN_WIDTH * (SCREEN_HEIGHT - 1) * 34 + 196);
 
     for(int y = 0; y < CORES; y++){
         threads[y] = thread(build_line, y*block_size, (y==CORES-1?renderheight:(y+1)*block_size), std::ref(buffer), y);
@@ -173,8 +171,8 @@ int main(){
         ////////////////////////////////////////////
 
 
-        C.x = 70.0f+(sin(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - start_time).count()/500.0f))*20.0f;
-        C.y = 25.0f+(sin(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - start_time).count()/500.0f+1.0f))*12.0f;
+        C.x = 70.0f+(sin(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - start_time).count()/100.0f))*20.0f;
+        C.y = 25.0f+(cos(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - start_time).count()/100.0f))*10.0f;
 
 
         ////////////////////////////////////////////
