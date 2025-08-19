@@ -13,7 +13,7 @@ constexpr int CORES = 12;
 
 float2 A={15,5},B={60, 50},C={80, 25},D={150,15};
 
-
+Image sbovo("../data/Untitled.png");
 
 int SCREEN_WIDTH,SCREEN_HEIGHT;
 chrono::steady_clock::time_point start_time;
@@ -58,7 +58,7 @@ void build_line (int yb, int ye, vector<string>& buffer, int id) {
     for(;;){
         semaphore_empty[id].acquire();
 
-        const int sw = SCREEN_WIDTH;
+        const int sw = SCREEN_WIDTH, sh = SCREEN_HEIGHT;
         color last_pixel, last_pixel2;
 
         for(int y = yb; y < ye; ++y){
@@ -71,6 +71,7 @@ void build_line (int yb, int ye, vector<string>& buffer, int id) {
             for(int x = 0; x < sw; ++x){
                 color pixel(1,1,1), pixel2(1,1,1);
 
+                /*
                 if(PointIsInsideTriangle(A, B, C, {(float)x+0.5f,(float)y+0.25f})){
                     pixel = color(1,1,255);
                 }
@@ -89,10 +90,41 @@ void build_line (int yb, int ye, vector<string>& buffer, int id) {
                 if(PointIsInsideTriangle(A, C, D, {(float)x+0.5f,(float)y+0.75f})){
                     pixel2 = color(1,255,1);
                 }
-                
+                */
 
+                pixel = sbovo.Sample((x+0.5f)/sw, (sh-y-0.25f)/sh);
+                pixel2 = sbovo.Sample((x+0.5f)/sw, (sh-y-0.75f)/sh);
+
+                pixel=color(0,pixel.g,0);
+                pixel2=color(0,pixel2.g,0);
+
+
+                if(!pixel.r&&!pixel.g&&!pixel.b)pixel=color(1,1,1);
+                if(!pixel2.r&&!pixel2.g&&!pixel2.b)pixel2=color(1,1,1);
                 if(x == 0){
                     last_pixel = pixel;
+                    last_pixel2 = pixel2;
+                    line.append("\x1b[38;2;");
+                    auto res = std::to_chars(numbuf, numbuf + sizeof(numbuf), pixel.r);
+                    line.append(numbuf, res.ptr - numbuf);
+                    line.push_back(';');
+                    res = std::to_chars(numbuf, numbuf + sizeof(numbuf), pixel.g);
+                    line.append(numbuf, res.ptr - numbuf);
+                    line.push_back(';');
+                    res = std::to_chars(numbuf, numbuf + sizeof(numbuf), pixel.b);
+                    line.append(numbuf, res.ptr - numbuf);
+                    line.append("m");
+                    last_pixel = pixel;
+                    line.append("\x1b[48;2;");
+                    res = std::to_chars(numbuf, numbuf + sizeof(numbuf), pixel2.r);
+                    line.append(numbuf, res.ptr - numbuf);
+                    line.push_back(';');
+                    res = std::to_chars(numbuf, numbuf + sizeof(numbuf), pixel2.g);
+                    line.append(numbuf, res.ptr - numbuf);
+                    line.push_back(';');
+                    res = std::to_chars(numbuf, numbuf + sizeof(numbuf), pixel2.b);
+                    line.append(numbuf, res.ptr - numbuf);
+                    line.append("m");
                     last_pixel2 = pixel2;
                 } else {
                     int dist_sq  = ColorDifferenceSquared(pixel, last_pixel);
@@ -158,6 +190,12 @@ int main(){
         threads[y] = thread(build_line, y*block_size, (y==CORES-1?renderheight:(y+1)*block_size), std::ref(buffer), y);
     }
 
+    //         AREA CAZZEGGIO
+    ////////////////////////////////
+
+
+
+    ////////////////////////////////
 
     for(int cur_frame = 0;;cur_frame++){
         delta_time_clock = std::chrono::steady_clock::now();
@@ -168,6 +206,7 @@ int main(){
             cur_frame=0;
         }
 
+        //            UPDATE LOOP
         ////////////////////////////////////////////
 
 
@@ -176,6 +215,7 @@ int main(){
 
 
         ////////////////////////////////////////////
+        //           RENDERING
 
         for(auto &s:semaphore_empty) s.release();
 
