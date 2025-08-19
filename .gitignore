@@ -43,3 +43,6 @@ main
 
 # cmake
 /build/
+
+/data/*
+!data/sbovo.png

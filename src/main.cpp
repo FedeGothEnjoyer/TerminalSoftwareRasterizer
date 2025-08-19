@@ -13,7 +13,7 @@ constexpr int CORES = 12;
 
 float2 A={15,5},B={60, 50},C={80, 25},D={150,15};
 
-Image sbovo("../data/Untitled.png");
+Image sbovo("../data/lucchi.jpg");
 
 int SCREEN_WIDTH,SCREEN_HEIGHT;
 chrono::steady_clock::time_point start_time;
@@ -91,13 +91,11 @@ void build_line (int yb, int ye, vector<string>& buffer, int id) {
                     pixel2 = color(1,255,1);
                 }
                 */
+                
 
-                pixel = sbovo.Sample((x+0.5f)/sw, (sh-y-0.25f)/sh);
+                pixel = elia.Sample((x+0.5f)/sw, (sh-y-0.25f)/sh);
                 pixel2 = sbovo.Sample((x+0.5f)/sw, (sh-y-0.75f)/sh);
-
-                pixel=color(0,pixel.g,0);
-                pixel2=color(0,pixel2.g,0);
-
+                
 
                 if(!pixel.r&&!pixel.g&&!pixel.b)pixel=color(1,1,1);
                 if(!pixel2.r&&!pixel2.g&&!pixel2.b)pixel2=color(1,1,1);
@@ -192,6 +190,7 @@ int main(){
 
     //         AREA CAZZEGGIO
     ////////////////////////////////
+
 
 
 
