@@ -5,15 +5,18 @@
 #include "vec.h"
 #include "rgb.h"
 #include "img.h"
+#include "OBJ_Loader.h"
+
 
 using namespace std;
 
 constexpr float FP_EPSILON = 1e-6f;
 constexpr int CORES = 12;
 
-float2 A={15,5},B={60, 50},C={80, 25},D={150,15};
+objl::Mesh mesh;
+//float2 A={15,5},B={60, 50},C={80, 25},D={150,15};
 
-Image sbovo("../data/lucchi.jpg");
+Image sbovo("../data/sbovo.png");
 
 int SCREEN_WIDTH,SCREEN_HEIGHT;
 chrono::steady_clock::time_point start_time;
@@ -58,17 +61,16 @@ void build_line (int yb, int ye, vector<string>& buffer, int id) {
     for(;;){
         semaphore_empty[id].acquire();
 
-        const int sw = SCREEN_WIDTH, sh = SCREEN_HEIGHT;
-        color last_pixel, last_pixel2;
+        const int sw = SCREEN_WIDTH;
+        color last_pixel(1,1,1), last_pixel2(1,1,1);
+        
 
-        for(int y = yb; y < ye; ++y){
+        for(int y = yb; y < ye; y++){
             string &line = buffer[buffer.size() - 1 - y];
             line.clear();
 
-            line.append("\x1b[38;2;1;1;1m\x1b[48;2;1;1;1m");
-
             char numbuf[16];
-            for(int x = 0; x < sw; ++x){
+            for(int x = 0; x < sw; x++){
                 color pixel(1,1,1), pixel2(1,1,1);
 
                 /*
@@ -93,13 +95,14 @@ void build_line (int yb, int ye, vector<string>& buffer, int id) {
                 */
                 
 
-                pixel = elia.Sample((x+0.5f)/sw, (sh-y-0.25f)/sh);
-                pixel2 = sbovo.Sample((x+0.5f)/sw, (sh-y-0.75f)/sh);
+                //pixel = sbovo.Sample((x+0.5f)/sw, (sh-y-0.25f)/sh);
+                //pixel2 = sbovo.Sample((x+0.5f)/sw, (sh-y-0.75f)/sh);
                 
 
                 if(!pixel.r&&!pixel.g&&!pixel.b)pixel=color(1,1,1);
                 if(!pixel2.r&&!pixel2.g&&!pixel2.b)pixel2=color(1,1,1);
-                if(x == 0){
+                if(x == 0 && y == ye-1){
+                    line.append("\x1b[38;2;1;1;1m\x1b[48;2;1;1;1m");
                     last_pixel = pixel;
                     last_pixel2 = pixel2;
                     line.append("\x1b[38;2;");
@@ -192,16 +195,18 @@ int main(){
     ////////////////////////////////
 
 
-
+    objl::Loader meshLoader;
+    if(!meshLoader.LoadFile("../data/cube.obj")) return -1;
+    mesh = meshLoader.LoadedMeshes[0];
 
     ////////////////////////////////
 
     for(int cur_frame = 0;;cur_frame++){
         delta_time_clock = std::chrono::steady_clock::now();
-        if(cur_frame==1024){
+        if(cur_frame==512){
             int delta_time = std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - fps_timer).count();
             fps_timer = delta_time_clock;
-            cur_fps = 1024/(float)delta_time*1000;
+            cur_fps = 512/(float)delta_time*1000;
             cur_frame=0;
         }
 
@@ -209,8 +214,8 @@ int main(){
         ////////////////////////////////////////////
 
 
-        C.x = 70.0f+(sin(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - start_time).count()/100.0f))*20.0f;
-        C.y = 25.0f+(cos(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - start_time).count()/100.0f))*10.0f;
+        //C.x = 70.0f+(sin(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - start_time).count()/100.0f))*20.0f;
+        //C.y = 25.0f+(cos(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - start_time).count()/100.0f))*10.0f;
 
 
         ////////////////////////////////////////////

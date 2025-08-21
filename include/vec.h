@@ -40,9 +40,44 @@ struct float2 {
     }
 };
 
-struct double2 {
-    double x, y;
+struct float3 {
+    float x, y, z;
 
-    double2() : x(0.0), y(0.0) {}
-    double2(double _x, double _y) : x(_x), y(_y) {}
+    // Constructors
+    float3() : x(0.0f), y(0.0f), z(0.0f) {}
+    float3(float _x, float _y, float _z) : x(_x), y(_y), z(_z) {}
+
+    // Addition
+    float3 operator+(const float3& other) const {
+        return {x + other.x, y + other.y, z + other.z};
+    }
+
+    float3& operator+=(const float3& other) {
+        x += other.x;
+        y += other.y;
+        z += other.z;
+        return *this;
+    }
+
+    // Subtraction
+    float3 operator-(const float3& other) const {
+        return {x - other.x, y - other.y, z - other.z};
+    }
+
+    float3& operator-=(const float3& other) {
+        x -= other.x;
+        y -= other.y;
+        z -= other.z;
+        return *this;
+    }
+
+    // Scalar multiplication
+    float3 operator*(float scalar) const {
+        return {x * scalar, y * scalar, z * scalar};
+    }
+
+    // Optional: magnitude
+    float length_squared() const {
+        return x*x + y*y + z*z;
+    }
 };
