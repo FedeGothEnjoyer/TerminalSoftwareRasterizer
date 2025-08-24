@@ -18,6 +18,7 @@ constexpr int CORES = 12;
 
 objl::Mesh mesh;
 glm::vec4 A={0.0f,0.0f,0.0f,1.0f},B={0.0f,1.0f,0.0f,1.0f},C={1.0f,1.0f,0.0f,1.0f},D={1.0f,0.0f,0.0f,1.0f};
+glm::vec4 A2,B2,C2,D2;
 
 Image sbovo("../data/sbovo.png");
 
@@ -60,8 +61,14 @@ inline bool PointIsInsideTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::ve
 }
 
 inline color CalculateFragment(float x, float y){
-    return sbovo.Sample((x+1)/2, (y+1)/2);
-    return color((x+1)/2,0,0);
+    //return sbovo.Sample((x+1)/2, (y+1)/2);
+    if(PointIsInsideTriangle(A2, B2, C2, {x,y})){
+        return color(0,0,1);
+    }
+    else if(PointIsInsideTriangle(A2, C2, D2, {x,y})){
+        return color(0,1,0);
+    }
+    else return color(0,0,0);
 }
 
 
@@ -105,10 +112,7 @@ void build_line (int yb, int ye, vector<string>& buffer, int id) {
                 pixel = CalculateFragment(x, y).Clamp();
                 pixel2 = CalculateFragment(x, y2).Clamp();
 
-                //line += ("\x1b[38;2;"+to_string(screen_x)+";0;0m#");
-                //continue;
-
-                if(screen_x == 0 && screen_y == ye-1){
+                if(screen_x == 0){
                     last_pixel = pixel;
                     last_pixel2 = pixel2;
                     line.append("\x1b[38;2;");
@@ -173,7 +177,6 @@ void build_line (int yb, int ye, vector<string>& buffer, int id) {
 }
 
 int main(){
-
     ios::sync_with_stdio(false);
     cout << "\x1b[?25l"; //hide cursor
 
@@ -205,8 +208,13 @@ int main(){
     if(!meshLoader.LoadFile("../data/cube.obj")) return -1;
     mesh = meshLoader.LoadedMeshes[0];
 
-    
-
+    glm::mat4 trans = glm::mat4(1.0f);
+    trans = glm::rotate(trans, glm::radians(30.0f), glm::vec3(0.0, 0.0, 1.0));
+    trans = glm::translate(trans, glm::vec3(-0.5f, -0.5f, 0.0f));
+    A=trans*A;
+    B=trans*B;
+    C=trans*C;
+    D=trans*D;
 
     ////////////////////////////////
 
@@ -222,6 +230,15 @@ int main(){
         //            UPDATE LOOP
         ////////////////////////////////////////////
 
+        std::chrono::duration<float> curTime = delta_time_clock - start_time;
+        float scale = (sin(curTime.count()*3)+1.5f)/4;
+        trans = glm::mat4(1.0f);
+        trans = glm::scale(trans, glm::vec3(scale,scale,1.0f));
+        trans = glm::rotate(trans, curTime.count()*3, glm::vec3(0.0f,0.0f,1.0f));
+        A2=trans*A;
+        B2=trans*B;
+        C2=trans*C;
+        D2=trans*D;
 
         //C.x = 70.0f+(sin(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - start_time).count()/100.0f))*20.0f;
         //C.y = 25.0f+(cos(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - start_time).count()/100.0f))*10.0f;
