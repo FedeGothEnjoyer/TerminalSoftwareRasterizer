@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include "rgb.h"
+#include <rgb.h>
 
 class Image{
     public:

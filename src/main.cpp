@@ -2,10 +2,14 @@
 #include <sys/ioctl.h>
 
 //lib
-#include "vec.h"
-#include "rgb.h"
-#include "img.h"
-#include "OBJ_Loader.h"
+#include <rgb.h>
+#include <img.h>
+#include <OBJ_Loader.h>
+
+//glm
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 
 using namespace std;
@@ -14,7 +18,7 @@ constexpr float FP_EPSILON = 1e-6f;
 constexpr int CORES = 12;
 
 objl::Mesh mesh;
-//float2 A={15,5},B={60, 50},C={80, 25},D={150,15};
+//glm::vec2 A={15,5},B={60, 50},C={80, 25},D={150,15};
 
 Image sbovo("../data/sbovo.png");
 
@@ -34,19 +38,19 @@ void getTerminalSize(int &x, int &y) {
     x = w.ws_col;
 }
 
-inline float PointIsOnRightSideOfLine(float2 a, float2 b, float2 p){ // res<0 == true
+inline float PointIsOnRightSideOfLine(glm::vec2 a, glm::vec2 b, glm::vec2 p){ // res<0 == true
     b-=a;
     p-=a;
     return (b.x*p.y) - (p.x*b.y);
 }
 
-inline bool EdgeIsTopLeft(const float2 &a, const float2 &b) {
+inline bool EdgeIsTopLeft(const glm::vec2 &a, const glm::vec2 &b) {
     float dx = b.x - a.x;
     float dy = b.y - a.y;
     return (dy > 0.0f) || (fabsf(dy) < FP_EPSILON && dx < 0.0f);
 }
 
-inline bool PointIsInsideTriangle(float2 a, float2 b, float2 c, float2 p){
+inline bool PointIsInsideTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 p){
     float ab = PointIsOnRightSideOfLine(a, b, p);
     float bc = PointIsOnRightSideOfLine(b, c, p);
     float ca = PointIsOnRightSideOfLine(c, a, p);
@@ -61,7 +65,7 @@ void build_line (int yb, int ye, vector<string>& buffer, int id) {
     for(;;){
         semaphore_empty[id].acquire();
 
-        const int sw = SCREEN_WIDTH;
+        const int sw = SCREEN_WIDTH, sh = SCREEN_HEIGHT;
         color last_pixel(1,1,1), last_pixel2(1,1,1);
         
 
@@ -93,10 +97,9 @@ void build_line (int yb, int ye, vector<string>& buffer, int id) {
                     pixel2 = color(1,255,1);
                 }
                 */
-                
 
-                //pixel = sbovo.Sample((x+0.5f)/sw, (sh-y-0.25f)/sh);
-                //pixel2 = sbovo.Sample((x+0.5f)/sw, (sh-y-0.75f)/sh);
+                pixel = sbovo.Sample((x+0.5f)/sw, (sh-y-0.25f)/sh);
+                pixel2 = sbovo.Sample((x+0.5f)/sw, (sh-y-0.75f)/sh);
                 
 
                 if(!pixel.r&&!pixel.g&&!pixel.b)pixel=color(1,1,1);
