@@ -1,15 +1,23 @@
 #pragma once
 
+#include <algorithm>
+
 struct color {
-    int r, g, b;
+    float r, g, b;
     color() : r(0), g(0), b(0) {}
-    color(int _r, int _g, int _b) : r(_r), g(_g), b(_b) {}
+    color(float _r, float _g, float _b) : r(_r), g(_g), b(_b) {}
+    color Clamp(){
+        return {
+        std::max(0.0f,std::min(1.0f,r)),
+        std::max(0.0f,std::min(1.0f,g)),
+        std::max(0.0f,std::min(1.0f,b))};
+    }
 };
 
 inline int ColorDifferenceSquared(color a, color b){
-    int dr = a.r - b.r;
-    int dg = a.g - b.g;
-    int db = a.b - b.b;
-    int rmean = (a.r + b.r) >> 1;
+    int dr = a.r*255 - b.r*255;
+    int dg = a.g*255 - b.g*255;
+    int db = a.b*255 - b.b*255;
+    int rmean = (a.r*255 + b.r*255) / 2;
     return ((512 + rmean) * dr * dr) + (1024 * dg * dg) + ((512 + (255 - rmean)) * db * db);
 }

@@ -11,14 +11,13 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-
 using namespace std;
 
 constexpr float FP_EPSILON = 1e-6f;
 constexpr int CORES = 12;
 
 objl::Mesh mesh;
-//glm::vec2 A={15,5},B={60, 50},C={80, 25},D={150,15};
+glm::vec4 A={0.0f,0.0f,0.0f,1.0f},B={0.0f,1.0f,0.0f,1.0f},C={1.0f,1.0f,0.0f,1.0f},D={1.0f,0.0f,0.0f,1.0f};
 
 Image sbovo("../data/sbovo.png");
 
@@ -26,7 +25,7 @@ int SCREEN_WIDTH,SCREEN_HEIGHT;
 chrono::steady_clock::time_point start_time;
 chrono::steady_clock::time_point delta_time_clock;
 
-const int threshold = 80000;
+const int threshold = 0;
 
 array<binary_semaphore,CORES>semaphore_full=[]<size_t...Is>(index_sequence<Is...>){return array<binary_semaphore,sizeof...(Is)>{((void)Is,binary_semaphore{0})...};}(make_index_sequence<CORES>());
 array<binary_semaphore,CORES>semaphore_empty=[]<size_t...Is>(index_sequence<Is...>){return array<binary_semaphore,sizeof...(Is)>{((void)Is,binary_semaphore{0})...};}(make_index_sequence<CORES>());
@@ -60,23 +59,28 @@ inline bool PointIsInsideTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::ve
            (ca<0||(EdgeIsTopLeft(c,a)&&ca==0));
 }
 
+inline color CalculateFragment(float x, float y){
+    return sbovo.Sample((x+1)/2, (y+1)/2);
+    return color((x+1)/2,0,0);
+}
+
 
 void build_line (int yb, int ye, vector<string>& buffer, int id) {
     for(;;){
         semaphore_empty[id].acquire();
 
         const int sw = SCREEN_WIDTH, sh = SCREEN_HEIGHT;
-        color last_pixel(1,1,1), last_pixel2(1,1,1);
+        color last_pixel(0,0,0), last_pixel2(0,0,0);
         
 
-        for(int y = yb; y < ye; y++){
-            string &line = buffer[buffer.size() - 1 - y];
+        for(int screen_y = yb; screen_y < ye; screen_y++){
+            string &line = buffer[buffer.size() - 1 - screen_y];
             line.clear();
 
             char numbuf[16];
-            for(int x = 0; x < sw; x++){
+            for(int screen_x = 0; screen_x < sw; screen_x++){
                 color pixel(1,1,1), pixel2(1,1,1);
-
+                float x = (screen_x+0.5f)*2/sw-1.0f, y = (screen_y+0.25f)*2/sh-1.0f, y2 = (screen_y+0.75f)*2/sh-1.0f;
                 /*
                 if(PointIsInsideTriangle(A, B, C, {(float)x+0.5f,(float)y+0.25f})){
                     pixel = color(1,1,255);
@@ -97,65 +101,63 @@ void build_line (int yb, int ye, vector<string>& buffer, int id) {
                     pixel2 = color(1,255,1);
                 }
                 */
-
-                pixel = sbovo.Sample((x+0.5f)/sw, (sh-y-0.25f)/sh);
-                pixel2 = sbovo.Sample((x+0.5f)/sw, (sh-y-0.75f)/sh);
                 
+                pixel = CalculateFragment(x, y).Clamp();
+                pixel2 = CalculateFragment(x, y2).Clamp();
 
-                if(!pixel.r&&!pixel.g&&!pixel.b)pixel=color(1,1,1);
-                if(!pixel2.r&&!pixel2.g&&!pixel2.b)pixel2=color(1,1,1);
-                if(x == 0 && y == ye-1){
-                    line.append("\x1b[38;2;1;1;1m\x1b[48;2;1;1;1m");
+                //line += ("\x1b[38;2;"+to_string(screen_x)+";0;0m#");
+                //continue;
+
+                if(screen_x == 0 && screen_y == ye-1){
                     last_pixel = pixel;
                     last_pixel2 = pixel2;
                     line.append("\x1b[38;2;");
-                    auto res = std::to_chars(numbuf, numbuf + sizeof(numbuf), pixel.r);
+                    auto res = std::to_chars(numbuf, numbuf + sizeof(numbuf), (int)(max(1.0f,pixel.r*255)));
                     line.append(numbuf, res.ptr - numbuf);
                     line.push_back(';');
-                    res = std::to_chars(numbuf, numbuf + sizeof(numbuf), pixel.g);
+                    res = std::to_chars(numbuf, numbuf + sizeof(numbuf), (int)(max(1.0f,pixel.g*255)));
                     line.append(numbuf, res.ptr - numbuf);
                     line.push_back(';');
-                    res = std::to_chars(numbuf, numbuf + sizeof(numbuf), pixel.b);
+                    res = std::to_chars(numbuf, numbuf + sizeof(numbuf), (int)(max(1.0f,pixel.b*255)));
                     line.append(numbuf, res.ptr - numbuf);
                     line.append("m");
                     last_pixel = pixel;
                     line.append("\x1b[48;2;");
-                    res = std::to_chars(numbuf, numbuf + sizeof(numbuf), pixel2.r);
+                    res = std::to_chars(numbuf, numbuf + sizeof(numbuf), (int)(max(1.0f,pixel2.r*255)));
                     line.append(numbuf, res.ptr - numbuf);
                     line.push_back(';');
-                    res = std::to_chars(numbuf, numbuf + sizeof(numbuf), pixel2.g);
+                    res = std::to_chars(numbuf, numbuf + sizeof(numbuf), (int)(max(1.0f,pixel2.g*255)));
                     line.append(numbuf, res.ptr - numbuf);
                     line.push_back(';');
-                    res = std::to_chars(numbuf, numbuf + sizeof(numbuf), pixel2.b);
+                    res = std::to_chars(numbuf, numbuf + sizeof(numbuf), (int)(max(1.0f,pixel2.b*255)));
                     line.append(numbuf, res.ptr - numbuf);
                     line.append("m");
-                    last_pixel2 = pixel2;
                 } else {
                     int dist_sq  = ColorDifferenceSquared(pixel, last_pixel);
                     int dist_sq2 = ColorDifferenceSquared(pixel2, last_pixel2);
 
                     if(dist_sq > threshold){
                         line.append("\x1b[38;2;");
-                        auto res = std::to_chars(numbuf, numbuf + sizeof(numbuf), pixel.r);
+                        auto res = std::to_chars(numbuf, numbuf + sizeof(numbuf), (int)(max(1.0f,pixel.r*255)));
                         line.append(numbuf, res.ptr - numbuf);
                         line.push_back(';');
-                        res = std::to_chars(numbuf, numbuf + sizeof(numbuf), pixel.g);
+                        res = std::to_chars(numbuf, numbuf + sizeof(numbuf), (int)(max(1.0f,pixel.g*255)));
                         line.append(numbuf, res.ptr - numbuf);
                         line.push_back(';');
-                        res = std::to_chars(numbuf, numbuf + sizeof(numbuf), pixel.b);
+                        res = std::to_chars(numbuf, numbuf + sizeof(numbuf), (int)(max(1.0f,pixel.b*255)));
                         line.append(numbuf, res.ptr - numbuf);
                         line.append("m");
                         last_pixel = pixel;
                     }
                     if(dist_sq2 > threshold){
                         line.append("\x1b[48;2;");
-                        auto res = std::to_chars(numbuf, numbuf + sizeof(numbuf), pixel2.r);
+                        auto res = std::to_chars(numbuf, numbuf + sizeof(numbuf), (int)(max(1.0f,pixel2.r*255)));
                         line.append(numbuf, res.ptr - numbuf);
                         line.push_back(';');
-                        res = std::to_chars(numbuf, numbuf + sizeof(numbuf), pixel2.g);
+                        res = std::to_chars(numbuf, numbuf + sizeof(numbuf), (int)(max(1.0f,pixel2.g*255)));
                         line.append(numbuf, res.ptr - numbuf);
                         line.push_back(';');
-                        res = std::to_chars(numbuf, numbuf + sizeof(numbuf), pixel2.b);
+                        res = std::to_chars(numbuf, numbuf + sizeof(numbuf), (int)(max(1.0f,pixel2.b*255)));
                         line.append(numbuf, res.ptr - numbuf);
                         line.append("m");
                         last_pixel2 = pixel2;
@@ -171,6 +173,7 @@ void build_line (int yb, int ye, vector<string>& buffer, int id) {
 }
 
 int main(){
+
     ios::sync_with_stdio(false);
     cout << "\x1b[?25l"; //hide cursor
 
@@ -201,6 +204,9 @@ int main(){
     objl::Loader meshLoader;
     if(!meshLoader.LoadFile("../data/cube.obj")) return -1;
     mesh = meshLoader.LoadedMeshes[0];
+
+    
+
 
     ////////////////////////////////
 

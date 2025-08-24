@@ -14,12 +14,12 @@ Image::Image(std::string filename, bool& result){
 }
 color Image::Sample(float _x, float _y){
     int x = std::min(width-1,std::max(0,(int)round(_x*width)));
-    int y = std::min(height-1,std::max(0,(int)round(_y*height)));
+    int y = height-1-std::min(height-1,std::max(0,(int)round(_y*height)));
     int index = (y*width+x)*3;
     int r=data[index++];
     int g=data[index++];
     int b=data[index];
-    return {r,g,b};
+    return {r/255.0f,g/255.0f,b/255.0f};
 }
 Image::~Image(){
     if (data) stbi_image_free(data);
