@@ -10,8 +10,8 @@ From the project root, run:
 
 ## Requirements
 
-- CMake (3.10+ recommended)
-- A C++17-compatible compiler (e.g., g++ or clang++)
+- CMake (4.0 recommended)
+- A C++20-compatible compiler (e.g., g++ or clang++)
 
 ## Notes
 
