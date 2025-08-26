@@ -7,6 +7,7 @@
 #include <OBJ_Loader.h>
 
 //glm
+#define GLM_FORCE_AVX2
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -60,13 +61,26 @@ inline bool PointIsInsideTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::ve
            (ca<0||(EdgeIsTopLeft(c,a)&&ca==0));
 }
 
+inline float AreaDouble(glm::vec2 a, glm::vec2 b, glm::vec2 c){
+    return fabs(a.x*(b.y-c.y)+b.x*(c.y-a.y)+c.x*(a.y-b.y));
+}
+
 inline color CalculateFragment(float x, float y){
     //return sbovo.Sample((x+1)/2, (y+1)/2);
     if(PointIsInsideTriangle(A2, B2, C2, {x,y})){
-        return color(0,0,1);
+        float ar = AreaDouble(A2, B2, C2);
+        float b0 = AreaDouble({x,y}, B2, C2) / ar;
+        float b1 = AreaDouble(A2, {x,y}, C2) / ar;
+        float b2 = AreaDouble(A2, B2, {x,y}) / ar;
+        return sbovo.Sample(b0*A.x+b1*B.x+b2*C.x, b0*A.y+b1*B.y+b2*C.y);
     }
-    else if(PointIsInsideTriangle(A2, C2, D2, {x,y})){
-        return color(0,1,0);
+    if(PointIsInsideTriangle(A2, C2, D2, {x,y})){
+        float ar = AreaDouble(A2, C2, D2);
+        float b0 = AreaDouble({x,y}, C2, D2) / ar;
+        float b1 = AreaDouble(A2, {x,y}, D2) / ar;
+        float b2 = AreaDouble(A2, C2, {x,y}) / ar;
+        glm::vec2 inUV = b0*A+b1*C+b2*D;
+        return sbovo.Sample(inUV.x, inUV.y);
     }
     else return color(0,0,0);
 }
@@ -182,6 +196,8 @@ int main(){
 
     getTerminalSize(SCREEN_WIDTH, SCREEN_HEIGHT);
 
+    glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH/(float)SCREEN_HEIGHT, 0.1f, 100.0f);
+
     string output;
     int cur_fps=0;
     chrono::steady_clock::time_point fps_timer = std::chrono::steady_clock::now();
@@ -208,15 +224,10 @@ int main(){
     if(!meshLoader.LoadFile("../data/cube.obj")) return -1;
     mesh = meshLoader.LoadedMeshes[0];
 
-    glm::mat4 trans = glm::mat4(1.0f);
-    trans = glm::rotate(trans, glm::radians(30.0f), glm::vec3(0.0, 0.0, 1.0));
-    trans = glm::translate(trans, glm::vec3(-0.5f, -0.5f, 0.0f));
-    A=trans*A;
-    B=trans*B;
-    C=trans*C;
-    D=trans*D;
 
     ////////////////////////////////
+
+    glm::mat4 trans = glm::mat4(1.0f);
 
     for(int cur_frame = 0;;cur_frame++){
         delta_time_clock = std::chrono::steady_clock::now();
@@ -235,6 +246,7 @@ int main(){
         trans = glm::mat4(1.0f);
         trans = glm::scale(trans, glm::vec3(scale,scale,1.0f));
         trans = glm::rotate(trans, curTime.count()*3, glm::vec3(0.0f,0.0f,1.0f));
+        trans = glm::translate(trans, glm::vec3(-0.5f, -0.5f, 0.0f));
         A2=trans*A;
         B2=trans*B;
         C2=trans*C;
