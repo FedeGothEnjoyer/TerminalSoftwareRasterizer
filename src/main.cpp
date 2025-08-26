@@ -73,7 +73,6 @@ inline glm::vec2 PerspectiveUV(glm::vec3 b, glm::vec3 w, glm::vec2 pA, glm::vec2
 }
 
 inline color CalculateFragment(float x, float y){
-    //return sbovo.Sample((x+1)/2, (y+1)/2);
     if(PointIsInsideTriangle(A2, B2, C2, {x,y})){
         float ar = AreaDouble(A2, B2, C2);
         float b0 = AreaDouble({x,y}, B2, C2) / ar;
@@ -110,26 +109,6 @@ void build_line (int yb, int ye, vector<string>& buffer, int id) {
             for(int screen_x = 0; screen_x < sw; screen_x++){
                 color pixel(1,1,1), pixel2(1,1,1);
                 float x = (screen_x+0.5f)*2/sw-1.0f, y = (screen_y+0.25f)*2/sh-1.0f, y2 = (screen_y+0.75f)*2/sh-1.0f;
-                /*
-                if(PointIsInsideTriangle(A, B, C, {(float)x+0.5f,(float)y+0.25f})){
-                    pixel = color(1,1,255);
-                }
-                if(PointIsInsideTriangle(A, B, C, {(float)x+0.5f,(float)y+0.75f})){
-                    pixel2 = color(1,1,255);
-                }
-                if(PointIsInsideTriangle(B, D, C, {(float)x+0.5f,(float)y+0.25f})){
-                    pixel = color(255,1,1);
-                }
-                if(PointIsInsideTriangle(B, D, C, {(float)x+0.5f,(float)y+0.75f})){
-                    pixel2 = color(255,1,1);
-                }
-                if(PointIsInsideTriangle(A, C, D, {(float)x+0.5f,(float)y+0.25f})){
-                    pixel = color(1,255,1);
-                }
-                if(PointIsInsideTriangle(A, C, D, {(float)x+0.5f,(float)y+0.75f})){
-                    pixel2 = color(1,255,1);
-                }
-                */
                 
                 pixel = CalculateFragment(x, y).Clamp();
                 pixel2 = CalculateFragment(x, y2).Clamp();
@@ -252,6 +231,16 @@ int main(){
         ////////////////////////////////////////////
 
         std::chrono::duration<float> curTime = delta_time_clock - start_time;
+
+
+
+
+
+
+
+        ////////////////////////////////////////////
+        //        VERTEX MANIPULATION
+
         model = glm::mat4(1.0f);
         model = glm::scale(model, glm::vec3(2,2,1.0f));
         model = glm::rotate(model, glm::radians(-55.0f+curTime.count()*100), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -264,10 +253,6 @@ int main(){
         B2.x/=B2.w;B2.y/=B2.w;B2.z/=B2.w;
         C2.x/=C2.w;C2.y/=C2.w;C2.z/=C2.w;
         D2.x/=D2.w;D2.y/=D2.w;D2.z/=D2.w;
-        
-
-        //C.x = 70.0f+(sin(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - start_time).count()/100.0f))*20.0f;
-        //C.y = 25.0f+(cos(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - start_time).count()/100.0f))*10.0f;
 
 
         ////////////////////////////////////////////
