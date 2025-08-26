@@ -90,7 +90,7 @@ inline color CalculateFragment(float x, float y){
         glm::vec2 uvCord = PerspectiveUV({b0,b1,b2},{A2.w,C2.w,D2.w},A,C,D);
         return sbovo.Sample(uvCord.x, uvCord.y);
     }
-    else return color(0,0,0);
+    return color(0,0,0);
 }
 
 
@@ -239,8 +239,6 @@ int main(){
 
     ////////////////////////////////
 
-    glm::mat4 trans = glm::mat4(1.0f);
-
     for(int cur_frame = 0;;cur_frame++){
         delta_time_clock = std::chrono::steady_clock::now();
         if(cur_frame==512){
@@ -255,16 +253,13 @@ int main(){
 
         std::chrono::duration<float> curTime = delta_time_clock - start_time;
         model = glm::mat4(1.0f);
+        model = glm::scale(model, glm::vec3(2,2,1.0f));
         model = glm::rotate(model, glm::radians(-55.0f+curTime.count()*100), glm::vec3(0.0f, 1.0f, 0.0f));
-        // float scale = (sin(curTime.count()*3)+1.5f)/4;
-        trans = glm::mat4(1.0f);
-        trans = glm::scale(trans, glm::vec3(2,2,1.0f));
-        //trans = glm::rotate(trans, curTime.count()*3, glm::vec3(0.0f,0.0f,1.0f));
-        trans = glm::translate(trans, glm::vec3(-0.5f, -0.5f, 0.0f));
-        A2=proj*view*model*trans*A;
-        B2=proj*view*model*trans*B;
-        C2=proj*view*model*trans*C;
-        D2=proj*view*model*trans*D;
+        model = glm::translate(model, glm::vec3(-0.5f, -0.5f, 0.0f));
+        A2=proj*view*model*A;
+        B2=proj*view*model*B;
+        C2=proj*view*model*C;
+        D2=proj*view*model*D;
         A2.x/=A2.w;A2.y/=A2.w;A2.z/=A2.w;
         B2.x/=B2.w;B2.y/=B2.w;B2.z/=B2.w;
         C2.x/=C2.w;C2.y/=C2.w;C2.z/=C2.w;
