@@ -65,6 +65,13 @@ inline float AreaDouble(glm::vec2 a, glm::vec2 b, glm::vec2 c){
     return fabs(a.x*(b.y-c.y)+b.x*(c.y-a.y)+c.x*(a.y-b.y));
 }
 
+inline glm::vec2 PerspectiveUV(glm::vec3 b, glm::vec3 w, glm::vec2 pA, glm::vec2 pB, glm::vec2 pC) {
+    glm::vec3 num = b/w;
+    float denom = num.x + num.y + num.z;
+    glm::vec3 res = num/denom;
+    return glm::vec2(res.x*pA.x+res.y*pB.x+res.z*pC.x,res.x*pA.y+res.y*pB.y+res.z*pC.y);
+}
+
 inline color CalculateFragment(float x, float y){
     //return sbovo.Sample((x+1)/2, (y+1)/2);
     if(PointIsInsideTriangle(A2, B2, C2, {x,y})){
@@ -72,15 +79,16 @@ inline color CalculateFragment(float x, float y){
         float b0 = AreaDouble({x,y}, B2, C2) / ar;
         float b1 = AreaDouble(A2, {x,y}, C2) / ar;
         float b2 = AreaDouble(A2, B2, {x,y}) / ar;
-        return sbovo.Sample(b0*A.x+b1*B.x+b2*C.x, b0*A.y+b1*B.y+b2*C.y);
+        glm::vec2 uvCord = PerspectiveUV({b0,b1,b2},{A2.w,B2.w,C2.w},A,B,C);
+        return sbovo.Sample(uvCord.x, uvCord.y);
     }
     if(PointIsInsideTriangle(A2, C2, D2, {x,y})){
         float ar = AreaDouble(A2, C2, D2);
         float b0 = AreaDouble({x,y}, C2, D2) / ar;
         float b1 = AreaDouble(A2, {x,y}, D2) / ar;
         float b2 = AreaDouble(A2, C2, {x,y}) / ar;
-        glm::vec2 inUV = b0*A+b1*C+b2*D;
-        return sbovo.Sample(inUV.x, inUV.y);
+        glm::vec2 uvCord = PerspectiveUV({b0,b1,b2},{A2.w,C2.w,D2.w},A,C,D);
+        return sbovo.Sample(uvCord.x, uvCord.y);
     }
     else return color(0,0,0);
 }
@@ -196,7 +204,11 @@ int main(){
 
     getTerminalSize(SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH/(float)SCREEN_HEIGHT, 0.1f, 100.0f);
+    glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH/((float)SCREEN_HEIGHT*2), 0.1f, 100.0f);
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    glm::mat4 view = glm::mat4(1.0f);
+    view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f)); 
 
     string output;
     int cur_fps=0;
@@ -242,15 +254,22 @@ int main(){
         ////////////////////////////////////////////
 
         std::chrono::duration<float> curTime = delta_time_clock - start_time;
-        float scale = (sin(curTime.count()*3)+1.5f)/4;
+        model = glm::mat4(1.0f);
+        model = glm::rotate(model, glm::radians(-55.0f+curTime.count()*100), glm::vec3(0.0f, 1.0f, 0.0f));
+        // float scale = (sin(curTime.count()*3)+1.5f)/4;
         trans = glm::mat4(1.0f);
-        trans = glm::scale(trans, glm::vec3(scale,scale,1.0f));
-        trans = glm::rotate(trans, curTime.count()*3, glm::vec3(0.0f,0.0f,1.0f));
+        trans = glm::scale(trans, glm::vec3(2,2,1.0f));
+        //trans = glm::rotate(trans, curTime.count()*3, glm::vec3(0.0f,0.0f,1.0f));
         trans = glm::translate(trans, glm::vec3(-0.5f, -0.5f, 0.0f));
-        A2=trans*A;
-        B2=trans*B;
-        C2=trans*C;
-        D2=trans*D;
+        A2=proj*view*model*trans*A;
+        B2=proj*view*model*trans*B;
+        C2=proj*view*model*trans*C;
+        D2=proj*view*model*trans*D;
+        A2.x/=A2.w;A2.y/=A2.w;A2.z/=A2.w;
+        B2.x/=B2.w;B2.y/=B2.w;B2.z/=B2.w;
+        C2.x/=C2.w;C2.y/=C2.w;C2.z/=C2.w;
+        D2.x/=D2.w;D2.y/=D2.w;D2.z/=D2.w;
+        
 
         //C.x = 70.0f+(sin(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - start_time).count()/100.0f))*20.0f;
         //C.y = 25.0f+(cos(std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - start_time).count()/100.0f))*10.0f;
