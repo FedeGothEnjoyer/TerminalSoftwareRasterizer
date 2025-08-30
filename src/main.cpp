@@ -16,18 +16,32 @@ using namespace std;
 
 constexpr float FP_EPSILON = 1e-6f;
 constexpr int CORES = 12;
+constexpr int MAX_VBO_SIZE = 1000;
+const int threshold = 80000;
+
+struct vertex{
+    glm::vec4 position;
+    glm::vec3 normal;
+    glm::vec2 uv;
+    vertex() : position(0,0,0,1), normal(0,0,0), uv(0,0) {}
+    vertex(glm::vec4 _position) : position(_position), normal(0,0,1), uv(0,0) {}
+    vertex(glm::vec3 _position, glm::vec2 _uv) : position(glm::vec4(_position,1.0f)), normal(0,0,0), uv(_uv) {}
+    vertex(glm::vec3 _position, glm::vec3 _normal, glm::vec2 _uv) : position(glm::vec4(_position,1.0f)), normal(_normal), uv(_uv) {}
+};
+
+vector<vertex>VBO;
+int VBO_size = 0;
 
 objl::Mesh mesh;
-glm::vec4 A={0.0f,0.0f,0.0f,1.0f},B={0.0f,1.0f,0.0f,1.0f},C={1.0f,1.0f,0.0f,1.0f},D={1.0f,0.0f,0.0f,1.0f};
+glm::vec3 A={0.0f,0.0f,0.0f},B={0.0f,1.0f,0.0f},C={1.0f,1.0f,0.0f},D={1.0f,0.0f,0.0f};
 glm::vec4 A2,B2,C2,D2;
+
 
 Image sbovo("../data/sbovo.png");
 
 int SCREEN_WIDTH,SCREEN_HEIGHT;
 chrono::steady_clock::time_point start_time;
 chrono::steady_clock::time_point delta_time_clock;
-
-const int threshold = 0;
 
 array<binary_semaphore,CORES>semaphore_full=[]<size_t...Is>(index_sequence<Is...>){return array<binary_semaphore,sizeof...(Is)>{((void)Is,binary_semaphore{0})...};}(make_index_sequence<CORES>());
 array<binary_semaphore,CORES>semaphore_empty=[]<size_t...Is>(index_sequence<Is...>){return array<binary_semaphore,sizeof...(Is)>{((void)Is,binary_semaphore{0})...};}(make_index_sequence<CORES>());
@@ -56,9 +70,9 @@ inline bool PointIsInsideTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::ve
     float bc = PointIsOnRightSideOfLine(b, c, p);
     float ca = PointIsOnRightSideOfLine(c, a, p);
 
-    return (ab<0||(EdgeIsTopLeft(a,b)&&ab==0)) &&
-           (bc<0||(EdgeIsTopLeft(b,c)&&bc==0)) &&
-           (ca<0||(EdgeIsTopLeft(c,a)&&ca==0));
+    return (ab<0||(EdgeIsTopLeft(a,b)&&ab<FP_EPSILON)) &&
+           (bc<0||(EdgeIsTopLeft(b,c)&&bc<FP_EPSILON)) &&
+           (ca<0||(EdgeIsTopLeft(c,a)&&ca<FP_EPSILON));
 }
 
 inline float AreaDouble(glm::vec2 a, glm::vec2 b, glm::vec2 c){
@@ -73,21 +87,16 @@ inline glm::vec2 PerspectiveUV(glm::vec3 b, glm::vec3 w, glm::vec2 pA, glm::vec2
 }
 
 inline color CalculateFragment(float x, float y){
-    if(PointIsInsideTriangle(A2, B2, C2, {x,y})){
-        float ar = AreaDouble(A2, B2, C2);
-        float b0 = AreaDouble({x,y}, B2, C2) / ar;
-        float b1 = AreaDouble(A2, {x,y}, C2) / ar;
-        float b2 = AreaDouble(A2, B2, {x,y}) / ar;
-        glm::vec2 uvCord = PerspectiveUV({b0,b1,b2},{A2.w,B2.w,C2.w},A,B,C);
-        return sbovo.Sample(uvCord.x, uvCord.y);
-    }
-    if(PointIsInsideTriangle(A2, C2, D2, {x,y})){
-        float ar = AreaDouble(A2, C2, D2);
-        float b0 = AreaDouble({x,y}, C2, D2) / ar;
-        float b1 = AreaDouble(A2, {x,y}, D2) / ar;
-        float b2 = AreaDouble(A2, C2, {x,y}) / ar;
-        glm::vec2 uvCord = PerspectiveUV({b0,b1,b2},{A2.w,C2.w,D2.w},A,C,D);
-        return sbovo.Sample(uvCord.x, uvCord.y);
+    for(int i = 0; i < VBO_size; i+=3){
+        auto v1 = VBO[i],v2=VBO[i+1],v3=VBO[i+2];
+        if(PointIsInsideTriangle(v1.position, v2.position, v3.position, {x,y})){
+            float ar = AreaDouble(v1.position, v2.position, v3.position);
+            float b0 = AreaDouble({x,y}, v2.position, v3.position) / ar;
+            float b1 = AreaDouble(v1.position, {x,y}, v3.position) / ar;
+            float b2 = AreaDouble(v1.position, v2.position, {x,y}) / ar;
+            glm::vec2 uvCord = PerspectiveUV({b0,b1,b2},{v1.position.w,v2.position.w,v3.position.w},v1.uv, v2.uv, v3.uv);
+            return sbovo.Sample(uvCord.x, uvCord.y);
+        }
     }
     return color(0,0,0);
 }
@@ -181,6 +190,8 @@ int main(){
     ios::sync_with_stdio(false);
     cout << "\x1b[?25l"; //hide cursor
 
+    VBO=vector<vertex>(MAX_VBO_SIZE);
+
     getTerminalSize(SCREEN_WIDTH, SCREEN_HEIGHT);
 
     glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH/((float)SCREEN_HEIGHT*2), 0.1f, 100.0f);
@@ -235,24 +246,25 @@ int main(){
 
 
 
-
-
-
         ////////////////////////////////////////////
         //        VERTEX MANIPULATION
 
+        VBO_size = 0;
+        for(auto &i:mesh.Indices){
+            VBO[VBO_size] = {{mesh.Vertices[i].Position.Z,mesh.Vertices[i].Position.Y,mesh.Vertices[i].Position.X},
+                             {mesh.Vertices[i].TextureCoordinate.X, mesh.Vertices[i].TextureCoordinate.Y}};
+            VBO_size++;
+        }
+
         model = glm::mat4(1.0f);
-        model = glm::scale(model, glm::vec3(2,2,1.0f));
-        model = glm::rotate(model, glm::radians(-55.0f+curTime.count()*100), glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::translate(model, glm::vec3(-0.5f, -0.5f, 0.0f));
-        A2=proj*view*model*A;
-        B2=proj*view*model*B;
-        C2=proj*view*model*C;
-        D2=proj*view*model*D;
-        A2.x/=A2.w;A2.y/=A2.w;A2.z/=A2.w;
-        B2.x/=B2.w;B2.y/=B2.w;B2.z/=B2.w;
-        C2.x/=C2.w;C2.y/=C2.w;C2.z/=C2.w;
-        D2.x/=D2.w;D2.y/=D2.w;D2.z/=D2.w;
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, -1.0f));
+        model = glm::scale(model, glm::vec3(2,2,2));
+        model = glm::rotate(model, glm::radians(-55.0f+curTime.count()*100), glm::vec3(0.5f, 1.0f, 0.3f));
+
+        for(auto &i:VBO){
+            i.position=proj*view*model*i.position;
+            i.position.x/=i.position.w;i.position.y/=i.position.w;i.position.z/=i.position.w;
+        }
 
 
         ////////////////////////////////////////////
