@@ -42,7 +42,7 @@ vector<vector<float>>Z_BUFFER;
 
 objl::Mesh mesh;
 
-Image sbovo("../data/sbovo.png");
+Image sbovo("../data/material16.png");
 
 int SCREEN_WIDTH,SCREEN_HEIGHT;
 chrono::steady_clock::time_point start_time;
@@ -100,7 +100,7 @@ inline optional<fragment> CalculateFragment(float x, float y, vertex v1, vertex 
         float z = b0*v1.position.z + b1*v2.position.z + b2*v3.position.z;
 
         //TEMPORARY NORMAL SHADING
-        v1.normal = glm::normalize(v1.normal);
+        //auto v = glm::normalize(glm::cross(glm::vec3(v2.position-v1.position),glm::vec3(v3.position-v1.position)));
         return fragment{{v1.normal.x/2+0.5f,v1.normal.z/2+0.5f,1},z};
 
         glm::vec2 uvCord = PerspectiveUV({b0,b1,b2},{v1.position.w,v2.position.w,v3.position.w},v1.uv, v2.uv, v3.uv);
@@ -231,7 +231,7 @@ int main(){
 
 
     objl::Loader meshLoader;
-    if(!meshLoader.LoadFile("../data/bunny.obj")) return -1;
+    if(!meshLoader.LoadFile("../data/dragon.obj")) return -1;
     mesh = meshLoader.LoadedMeshes[0];
 
 
@@ -264,11 +264,28 @@ int main(){
         }
 
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, -6.0f, -20.0f));
+
+        //preset for stanford dragon
+        model = glm::translate(model, glm::vec3(0.0f, -15.0f, -50.0f));
         model = glm::scale(model, glm::vec3(.1f,.1f,.1f));
         model = glm::rotate(model, glm::radians(-55.0f+curTime.count()*100), glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, -25.0f));
-        model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+
+        //preset for teapot
+        // model = glm::translate(model, glm::vec3(0.0f, 0.0f, -10.0f));
+        // model = glm::scale(model, glm::vec3(1,1,1));
+        // model = glm::rotate(model, glm::radians(-55.0f+curTime.count()*200), glm::vec3(0.0f, 1.0f, 0.0f));
+
+        //preset for low poly bunny
+        // model = glm::translate(model, glm::vec3(0.0f, -6.0f+fabs(sin(curTime.count()*5))*2, -20.0f));
+        // model = glm::scale(model, glm::vec3(.1f,.1f,.1f));
+        // model = glm::rotate(model, glm::radians(-55.0f+curTime.count()*200), glm::vec3(0.0f, 1.0f, 0.0f));
+        // model = glm::translate(model, glm::vec3(0.0f, 0.0f, -25.0f));
+        // model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+
+        //preset for actual stanford bunny
+        // model = glm::translate(model, glm::vec3(0.0f, -13.0f, -40.0f));
+        // model = glm::scale(model, glm::vec3(.1f,.1f,.1f));
+        // model = glm::rotate(model, glm::radians(-55.0f+curTime.count()*100), glm::vec3(0.0f, 1.0f, 0.0f));
 
         for(int i = 0; i < VBO_size; i++){
             VBO[i].position=proj*view*model*VBO[i].position;
@@ -316,7 +333,7 @@ int main(){
         output.clear();
 
         output += "\x1b[H\x1b[?25l";
-        output += "\x1b[39;49m" + to_string(SCREEN_WIDTH) + "x" + to_string(SCREEN_HEIGHT*2) + " " + to_string(cur_fps) + "\x1b[K\n";
+        output += "\x1b[39;49m" + to_string(SCREEN_WIDTH) + "x" + to_string(SCREEN_HEIGHT*2) + " [vertices:" + to_string(mesh.Vertices.size()) + "] fps:" + to_string(cur_fps) + "\x1b[K\n";
 
         for(auto &s:semaphore_full) s.acquire();
 
