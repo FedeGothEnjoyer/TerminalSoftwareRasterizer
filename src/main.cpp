@@ -17,6 +17,8 @@ using namespace std;
 constexpr float FP_EPSILON = 1e-6f;
 constexpr int CORES = 12;
 constexpr int MAX_VBO_SIZE = 1000002;
+constexpr float NEAR_PLANE = 0.1f;
+constexpr float FAR_PLANE = 100.0f;
 const int threshold = 0;
 
 struct vertex{
@@ -91,6 +93,16 @@ inline glm::vec2 PerspectiveUV(glm::vec3 b, glm::vec3 w, glm::vec2 pA, glm::vec2
     return glm::vec2(res.x*pA.x+res.y*pB.x+res.z*pC.x,res.x*pA.y+res.y*pB.y+res.z*pC.y);
 }
 
+inline float LinearizeDepthFromNDC(float z_ndc, float n, float f) {
+    // z_ndc in [-1,1], n = near, f = far
+    return (2.0f * n * f) / (f + n - z_ndc * (f - n));
+}
+
+inline float Linear01FromNDC(float z_ndc, float n, float f) {
+    float z_eye = LinearizeDepthFromNDC(z_ndc, n, f);
+    return (z_eye - n) / (f - n);
+}
+
 inline optional<fragment> CalculateFragment(float x, float y, vertex v1, vertex v2, vertex v3){
     if(PointIsInsideTriangle(v1.position, v2.position, v3.position, {x,y})){
         float ar = AreaDouble(v1.position, v2.position, v3.position);
@@ -99,9 +111,13 @@ inline optional<fragment> CalculateFragment(float x, float y, vertex v1, vertex 
         float b2 = AreaDouble(v1.position, v2.position, {x,y}) / ar;
         float z = b0*v1.position.z + b1*v2.position.z + b2*v3.position.z;
 
-        //TEMPORARY NORMAL SHADING
+        //LINEARIZED DEPTH SHADING
+        //float colz = 1-Linear01FromNDC(z, NEAR_PLANE, FAR_PLANE);
+        //return fragment{{colz,0,0},z};
+
+        //NORMAL SHADING
         //auto v = glm::normalize(glm::cross(glm::vec3(v2.position-v1.position),glm::vec3(v3.position-v1.position)));
-        return fragment{{v1.normal.x/2+0.5f,v1.normal.z/2+0.5f,1},z};
+        return fragment{{v1.normal.x/2+0.5f,v1.normal.z/2+0.5f,0},z};
 
         glm::vec2 uvCord = PerspectiveUV({b0,b1,b2},{v1.position.w,v2.position.w,v3.position.w},v1.uv, v2.uv, v3.uv);
         return fragment{sbovo.Sample(uvCord.x, uvCord.y),z};
@@ -191,6 +207,7 @@ void build_line (int yb, int ye, vector<string>& buffer, int id) {
     }
 }
 
+
 int main(){
     ios::sync_with_stdio(false);
     cout << "\x1b[?25l"; //hide cursor
@@ -201,8 +218,8 @@ int main(){
 
     Z_BUFFER = vector<vector<float>>(SCREEN_WIDTH,vector<float>(SCREEN_HEIGHT*2,0));
     FRAME_BUFFER = vector<vector<color>>(SCREEN_WIDTH,vector<color>(SCREEN_HEIGHT*2,{0,0,0}));
-
-    glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH/((float)SCREEN_HEIGHT*2), 0.1f, 100.0f);
+    
+    glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH/((float)SCREEN_HEIGHT*2), NEAR_PLANE, FAR_PLANE);
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
     glm::mat4 view = glm::mat4(1.0f);
@@ -239,10 +256,10 @@ int main(){
 
     for(int cur_frame = 0;;cur_frame++){
         delta_time_clock = std::chrono::steady_clock::now();
-        if(cur_frame==512){
+        if(cur_frame==60){
             int delta_time = std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - fps_timer).count();
             fps_timer = delta_time_clock;
-            cur_fps = 512/(float)delta_time*1000;
+            cur_fps = 60/(float)delta_time*1000;
             cur_frame=0;
         }
 
