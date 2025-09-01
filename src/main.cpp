@@ -16,8 +16,8 @@ using namespace std;
 
 constexpr float FP_EPSILON = 1e-6f;
 constexpr int CORES = 12;
-constexpr int MAX_VBO_SIZE = 1000;
-const int threshold = 80000;
+constexpr int MAX_VBO_SIZE = 1000002;
+const int threshold = 0;
 
 struct vertex{
     glm::vec4 position;
@@ -29,13 +29,18 @@ struct vertex{
     vertex(glm::vec3 _position, glm::vec3 _normal, glm::vec2 _uv) : position(glm::vec4(_position,1.0f)), normal(_normal), uv(_uv) {}
 };
 
+struct fragment{
+    color col;
+    float z;
+};
+
 vector<vertex>VBO;
 int VBO_size = 0;
 
-objl::Mesh mesh;
-glm::vec3 A={0.0f,0.0f,0.0f},B={0.0f,1.0f,0.0f},C={1.0f,1.0f,0.0f},D={1.0f,0.0f,0.0f};
-glm::vec4 A2,B2,C2,D2;
+vector<vector<color>>FRAME_BUFFER;
+vector<vector<float>>Z_BUFFER;
 
+objl::Mesh mesh;
 
 Image sbovo("../data/sbovo.png");
 
@@ -86,19 +91,22 @@ inline glm::vec2 PerspectiveUV(glm::vec3 b, glm::vec3 w, glm::vec2 pA, glm::vec2
     return glm::vec2(res.x*pA.x+res.y*pB.x+res.z*pC.x,res.x*pA.y+res.y*pB.y+res.z*pC.y);
 }
 
-inline color CalculateFragment(float x, float y){
-    for(int i = 0; i < VBO_size; i+=3){
-        auto v1 = VBO[i],v2=VBO[i+1],v3=VBO[i+2];
-        if(PointIsInsideTriangle(v1.position, v2.position, v3.position, {x,y})){
-            float ar = AreaDouble(v1.position, v2.position, v3.position);
-            float b0 = AreaDouble({x,y}, v2.position, v3.position) / ar;
-            float b1 = AreaDouble(v1.position, {x,y}, v3.position) / ar;
-            float b2 = AreaDouble(v1.position, v2.position, {x,y}) / ar;
-            glm::vec2 uvCord = PerspectiveUV({b0,b1,b2},{v1.position.w,v2.position.w,v3.position.w},v1.uv, v2.uv, v3.uv);
-            return sbovo.Sample(uvCord.x, uvCord.y);
-        }
+inline optional<fragment> CalculateFragment(float x, float y, vertex v1, vertex v2, vertex v3){
+    if(PointIsInsideTriangle(v1.position, v2.position, v3.position, {x,y})){
+        float ar = AreaDouble(v1.position, v2.position, v3.position);
+        float b0 = AreaDouble({x,y}, v2.position, v3.position) / ar;
+        float b1 = AreaDouble(v1.position, {x,y}, v3.position) / ar;
+        float b2 = AreaDouble(v1.position, v2.position, {x,y}) / ar;
+        float z = b0*v1.position.z + b1*v2.position.z + b2*v3.position.z;
+
+        //TEMPORARY NORMAL SHADING
+        v1.normal = glm::normalize(v1.normal);
+        return fragment{{v1.normal.x/2+0.5f,v1.normal.z/2+0.5f,1},z};
+
+        glm::vec2 uvCord = PerspectiveUV({b0,b1,b2},{v1.position.w,v2.position.w,v3.position.w},v1.uv, v2.uv, v3.uv);
+        return fragment{sbovo.Sample(uvCord.x, uvCord.y),z};
     }
-    return color(0,0,0);
+    return nullopt;
 }
 
 
@@ -106,7 +114,7 @@ void build_line (int yb, int ye, vector<string>& buffer, int id) {
     for(;;){
         semaphore_empty[id].acquire();
 
-        const int sw = SCREEN_WIDTH, sh = SCREEN_HEIGHT;
+        const int sw = SCREEN_WIDTH;// sh = SCREEN_HEIGHT;
         color last_pixel(0,0,0), last_pixel2(0,0,0);
         
 
@@ -116,11 +124,8 @@ void build_line (int yb, int ye, vector<string>& buffer, int id) {
 
             char numbuf[16];
             for(int screen_x = 0; screen_x < sw; screen_x++){
-                color pixel(1,1,1), pixel2(1,1,1);
-                float x = (screen_x+0.5f)*2/sw-1.0f, y = (screen_y+0.25f)*2/sh-1.0f, y2 = (screen_y+0.75f)*2/sh-1.0f;
-                
-                pixel = CalculateFragment(x, y).Clamp();
-                pixel2 = CalculateFragment(x, y2).Clamp();
+                color pixel = FRAME_BUFFER[screen_x][screen_y*2].Clamp();
+                color pixel2 = FRAME_BUFFER[screen_x][screen_y*2+1].Clamp();
 
                 if(screen_x == 0){
                     last_pixel = pixel;
@@ -194,6 +199,9 @@ int main(){
 
     getTerminalSize(SCREEN_WIDTH, SCREEN_HEIGHT);
 
+    Z_BUFFER = vector<vector<float>>(SCREEN_WIDTH,vector<float>(SCREEN_HEIGHT*2,0));
+    FRAME_BUFFER = vector<vector<color>>(SCREEN_WIDTH,vector<color>(SCREEN_HEIGHT*2,{0,0,0}));
+
     glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)SCREEN_WIDTH/((float)SCREEN_HEIGHT*2), 0.1f, 100.0f);
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
@@ -223,7 +231,7 @@ int main(){
 
 
     objl::Loader meshLoader;
-    if(!meshLoader.LoadFile("../data/cube.obj")) return -1;
+    if(!meshLoader.LoadFile("../data/bunny.obj")) return -1;
     mesh = meshLoader.LoadedMeshes[0];
 
 
@@ -244,31 +252,63 @@ int main(){
         std::chrono::duration<float> curTime = delta_time_clock - start_time;
 
 
-
-
         ////////////////////////////////////////////
         //        VERTEX MANIPULATION
 
         VBO_size = 0;
         for(auto &i:mesh.Indices){
             VBO[VBO_size] = {{mesh.Vertices[i].Position.Z,mesh.Vertices[i].Position.Y,mesh.Vertices[i].Position.X},
+                             {mesh.Vertices[i].Normal.X,mesh.Vertices[i].Normal.Y,mesh.Vertices[i].Normal.Z},
                              {mesh.Vertices[i].TextureCoordinate.X, mesh.Vertices[i].TextureCoordinate.Y}};
             VBO_size++;
         }
 
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, -1.0f));
-        model = glm::scale(model, glm::vec3(2,2,2));
-        model = glm::rotate(model, glm::radians(-55.0f+curTime.count()*100), glm::vec3(0.5f, 1.0f, 0.3f));
+        model = glm::translate(model, glm::vec3(0.0f, -6.0f, -20.0f));
+        model = glm::scale(model, glm::vec3(.1f,.1f,.1f));
+        model = glm::rotate(model, glm::radians(-55.0f+curTime.count()*100), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, -25.0f));
+        model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 
-        for(auto &i:VBO){
-            i.position=proj*view*model*i.position;
-            i.position.x/=i.position.w;i.position.y/=i.position.w;i.position.z/=i.position.w;
+        for(int i = 0; i < VBO_size; i++){
+            VBO[i].position=proj*view*model*VBO[i].position;
+            VBO[i].position.x/=VBO[i].position.w;
+            VBO[i].position.y/=VBO[i].position.w;
+            VBO[i].position.z/=VBO[i].position.w;
         }
 
 
         ////////////////////////////////////////////
         //           RENDERING
+
+        for (auto &col : Z_BUFFER)
+            std::fill(col.begin(), col.end(), 1);
+        for (auto &col : FRAME_BUFFER)
+            std::fill(col.begin(), col.end(), color());
+
+
+        for(int i = 0; i < VBO_size; i+=3){
+            auto v1=VBO[i],v2=VBO[i+1],v3=VBO[i+2];
+
+            int minX = max(0,(int)floor((min({v1.position.x, v2.position.x, v3.position.x})/2+0.5f)*SCREEN_WIDTH));
+            int maxX = min(SCREEN_WIDTH-1,(int)ceil((max({v1.position.x, v2.position.x, v3.position.x})/2+0.5f)*SCREEN_WIDTH));
+            int minY = max(0,(int)floor((min({v1.position.y, v2.position.y, v3.position.y})/2+0.5f)*SCREEN_HEIGHT*2));
+            int maxY = min(SCREEN_HEIGHT*2-1,(int)ceil((max({v1.position.y, v2.position.y, v3.position.y})/2+0.5f)*SCREEN_HEIGHT*2));
+
+            for(int screen_y = minY; screen_y <= maxY; screen_y++){
+                for(int screen_x = minX; screen_x <= maxX; screen_x++){
+                    float x = (screen_x+0.5f)*2/SCREEN_WIDTH-1.0f, y = (screen_y+0.5f)/SCREEN_HEIGHT-1.0f;
+                    auto frag = CalculateFragment(x,y,v1,v2,v3);
+                    if(frag){
+                        if(frag->z<Z_BUFFER[screen_x][screen_y]){
+                            Z_BUFFER[screen_x][screen_y] = frag->z;
+                            FRAME_BUFFER[screen_x][screen_y] = frag->col;
+                        }
+                    }
+                } // x
+            } // y
+        }
+
 
         for(auto &s:semaphore_empty) s.release();
 
