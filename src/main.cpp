@@ -93,14 +93,15 @@ inline glm::vec2 PerspectiveUV(glm::vec3 b, glm::vec3 w, glm::vec2 pA, glm::vec2
     return glm::vec2(res.x*pA.x+res.y*pB.x+res.z*pC.x,res.x*pA.y+res.y*pB.y+res.z*pC.y);
 }
 
-inline float LinearizeDepthFromNDC(float z_ndc, float n, float f) {
-    // z_ndc in [-1,1], n = near, f = far
-    return (2.0f * n * f) / (f + n - z_ndc * (f - n));
+inline glm::vec3 PerspectiveNormal(glm::vec3 b, glm::vec3 w, glm::vec3 nA, glm::vec3 nB, glm::vec3 nC) {
+    glm::vec3 num = b/w;
+    float denom = num.x + num.y + num.z;
+    glm::vec3 res = num/denom;
+    return glm::vec3(res.x*nA.x+res.y*nB.x+res.z*nC.x,res.x*nA.y+res.y*nB.y+res.z*nC.y,res.x*nA.z+res.y*nB.z+res.z*nC.z);
 }
 
 inline float Linear01FromNDC(float z_ndc, float n, float f) {
-    float z_eye = LinearizeDepthFromNDC(z_ndc, n, f);
-    return (z_eye - n) / (f - n);
+    return (n * (1.0f + z_ndc)) / (f + n - z_ndc * (f - n));
 }
 
 inline optional<fragment> CalculateFragment(float x, float y, vertex v1, vertex v2, vertex v3){
@@ -115,12 +116,15 @@ inline optional<fragment> CalculateFragment(float x, float y, vertex v1, vertex 
         //float colz = 1-Linear01FromNDC(z, NEAR_PLANE, FAR_PLANE);
         //return fragment{{colz,0,0},z};
 
-        //NORMAL SHADING
-        //auto v = glm::normalize(glm::cross(glm::vec3(v2.position-v1.position),glm::vec3(v3.position-v1.position)));
-        return fragment{{v1.normal.x/2+0.5f,v1.normal.z/2+0.5f,0},z};
+        //SMOOTH NORMAL SHADING
+        auto v = glm::normalize(PerspectiveNormal({b0,b1,b2},{v1.position.w,v2.position.w,v3.position.w},v1.normal, v2.normal, v3.normal));
+        //return fragment{{v.x/2+0.5f,v.y/2+0.5f,1},z};
+
+        //FLAT NORMAL SHADING
+        //return fragment{{v1.normal.x/2+0.5f,v1.normal.y/2+0.5f,1},z};
 
         glm::vec2 uvCord = PerspectiveUV({b0,b1,b2},{v1.position.w,v2.position.w,v3.position.w},v1.uv, v2.uv, v3.uv);
-        return fragment{sbovo.Sample(uvCord.x, uvCord.y),z};
+        return fragment{sbovo.Sample(uvCord.x, uvCord.y)*(v.x+0.5f),z};
     }
     return nullopt;
 }
@@ -248,7 +252,7 @@ int main(){
 
 
     objl::Loader meshLoader;
-    if(!meshLoader.LoadFile("../data/dragon.obj")) return -1;
+    if(!meshLoader.LoadFile("../data/st_bunny.obj")) return -1;
     mesh = meshLoader.LoadedMeshes[0];
 
 
@@ -270,12 +274,12 @@ int main(){
 
 
         ////////////////////////////////////////////
-        //        VERTEX MANIPULATION
+        //        VERTEX SHADER
 
         VBO_size = 0;
         for(auto &i:mesh.Indices){
             VBO[VBO_size] = {{mesh.Vertices[i].Position.Z,mesh.Vertices[i].Position.Y,mesh.Vertices[i].Position.X},
-                             {mesh.Vertices[i].Normal.X,mesh.Vertices[i].Normal.Y,mesh.Vertices[i].Normal.Z},
+                             {mesh.Vertices[i].Normal.Z,mesh.Vertices[i].Normal.Y,mesh.Vertices[i].Normal.X},
                              {mesh.Vertices[i].TextureCoordinate.X, mesh.Vertices[i].TextureCoordinate.Y}};
             VBO_size++;
         }
@@ -283,9 +287,9 @@ int main(){
         model = glm::mat4(1.0f);
 
         //preset for stanford dragon
-        model = glm::translate(model, glm::vec3(0.0f, -15.0f, -50.0f));
-        model = glm::scale(model, glm::vec3(.1f,.1f,.1f));
-        model = glm::rotate(model, glm::radians(-55.0f+curTime.count()*100), glm::vec3(0.0f, 1.0f, 0.0f));
+        // model = glm::translate(model, glm::vec3(0.0f, -15.0f, -30.0f));
+        // model = glm::scale(model, glm::vec3(.1f,.1f,.1f));
+        // model = glm::rotate(model, glm::radians(-55.0f+curTime.count()*100), glm::vec3(0.0f, 1.0f, 0.0f));
 
         //preset for teapot
         // model = glm::translate(model, glm::vec3(0.0f, 0.0f, -10.0f));
@@ -300,15 +304,19 @@ int main(){
         // model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 
         //preset for actual stanford bunny
-        // model = glm::translate(model, glm::vec3(0.0f, -13.0f, -40.0f));
-        // model = glm::scale(model, glm::vec3(.1f,.1f,.1f));
-        // model = glm::rotate(model, glm::radians(-55.0f+curTime.count()*100), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::translate(model, glm::vec3(0.0f, -13.0f, -40.0f));
+        model = glm::scale(model, glm::vec3(.1f,.1f,.1f));
+        model = glm::rotate(model, glm::radians(-55.0f+curTime.count()*100), glm::vec3(0.0f, 1.0f, 0.0f));
+
+        glm::mat4 modelview = view * model;
+        glm::mat3 normalMatrix = glm::transpose(glm::inverse(glm::mat3(modelview)));
 
         for(int i = 0; i < VBO_size; i++){
             VBO[i].position=proj*view*model*VBO[i].position;
             VBO[i].position.x/=VBO[i].position.w;
             VBO[i].position.y/=VBO[i].position.w;
             VBO[i].position.z/=VBO[i].position.w;
+            VBO[i].normal=normalMatrix*VBO[i].normal;
         }
 
 
@@ -323,6 +331,8 @@ int main(){
 
         for(int i = 0; i < VBO_size; i+=3){
             auto v1=VBO[i],v2=VBO[i+1],v3=VBO[i+2];
+
+            if(v1.position.z<0||v2.position.z<0||v3.position.z<0) continue;
 
             int minX = max(0,(int)floor((min({v1.position.x, v2.position.x, v3.position.x})/2+0.5f)*SCREEN_WIDTH));
             int maxX = min(SCREEN_WIDTH-1,(int)ceil((max({v1.position.x, v2.position.x, v3.position.x})/2+0.5f)*SCREEN_WIDTH));

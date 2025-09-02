@@ -6,11 +6,14 @@ struct color {
     float r, g, b;
     color() : r(0), g(0), b(0) {}
     color(float _r, float _g, float _b) : r(_r), g(_g), b(_b) {}
-    color Clamp(){
+    [[nodiscard]]color Clamp(){
         return {
         std::max(0.0f,std::min(1.0f,r)),
         std::max(0.0f,std::min(1.0f,g)),
         std::max(0.0f,std::min(1.0f,b))};
+    }
+    [[nodiscard]]color operator*(const float scalar) const {
+        return {scalar * r, scalar * g, scalar * b};
     }
 };
 
