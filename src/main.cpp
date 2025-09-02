@@ -44,7 +44,7 @@ vector<vector<float>>Z_BUFFER;
 
 objl::Mesh mesh;
 
-Image sbovo("../data/material16.png");
+Image sbovo("../data/shaded.png");
 
 int SCREEN_WIDTH,SCREEN_HEIGHT;
 chrono::steady_clock::time_point start_time;
@@ -121,10 +121,10 @@ inline optional<fragment> CalculateFragment(float x, float y, vertex v1, vertex 
         //return fragment{{v.x/2+0.5f,v.y/2+0.5f,1},z};
 
         //FLAT NORMAL SHADING
-        //return fragment{{v1.normal.x/2+0.5f,v1.normal.y/2+0.5f,1},z};
+        //return fragment{{v1.normal.x/2+0.5f,v1.normal.z/2+0.5f,1},z};
 
         glm::vec2 uvCord = PerspectiveUV({b0,b1,b2},{v1.position.w,v2.position.w,v3.position.w},v1.uv, v2.uv, v3.uv);
-        return fragment{sbovo.Sample(uvCord.x, uvCord.y)*(v.x+0.5f),z};
+        return fragment{sbovo.Sample(uvCord.x, uvCord.y)*(v.z),z};
     }
     return nullopt;
 }
@@ -252,7 +252,7 @@ int main(){
 
 
     objl::Loader meshLoader;
-    if(!meshLoader.LoadFile("../data/st_bunny.obj")) return -1;
+    if(!meshLoader.LoadFile("../data/sbovo.obj")) return -1;
     mesh = meshLoader.LoadedMeshes[0];
 
 
@@ -260,10 +260,10 @@ int main(){
 
     for(int cur_frame = 0;;cur_frame++){
         delta_time_clock = std::chrono::steady_clock::now();
-        if(cur_frame==60){
+        if(cur_frame==512){
             int delta_time = std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - fps_timer).count();
             fps_timer = delta_time_clock;
-            cur_fps = 60/(float)delta_time*1000;
+            cur_fps = 512/(float)delta_time*1000;
             cur_frame=0;
         }
 
@@ -303,9 +303,14 @@ int main(){
         // model = glm::translate(model, glm::vec3(0.0f, 0.0f, -25.0f));
         // model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 
-        //preset for actual stanford bunny
-        model = glm::translate(model, glm::vec3(0.0f, -13.0f, -40.0f));
-        model = glm::scale(model, glm::vec3(.1f,.1f,.1f));
+        //preset for actual stanford bunny and link
+        // model = glm::translate(model, glm::vec3(0.0f, -15.0f, -40.0f));
+        // model = glm::scale(model, glm::vec3(.2f,.2f,.2f));
+        // model = glm::rotate(model, glm::radians(-55.0f+curTime.count()*100), glm::vec3(0.0f, 1.0f, 0.0f));
+
+        //preset for sbovo.obj
+        model = glm::translate(model, glm::vec3(0.0f, -20.0f, -50.0f));
+        model = glm::scale(model, glm::vec3(.2f,.2f,.2f));
         model = glm::rotate(model, glm::radians(-55.0f+curTime.count()*100), glm::vec3(0.0f, 1.0f, 0.0f));
 
         glm::mat4 modelview = view * model;
