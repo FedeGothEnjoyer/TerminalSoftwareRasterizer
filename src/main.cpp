@@ -260,11 +260,11 @@ int main(){
 
     for(int cur_frame = 0;;cur_frame++){
         delta_time_clock = std::chrono::steady_clock::now();
-        if(cur_frame==512){
-            int delta_time = std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - fps_timer).count();
-            fps_timer = delta_time_clock;
-            cur_fps = 512/(float)delta_time*1000;
-            cur_frame=0;
+        int delta_time = std::chrono::duration_cast<std::chrono::milliseconds>(delta_time_clock - fps_timer).count();
+        if (delta_time >= 250) { // update every 0.5 seconds
+            cur_fps = cur_frame / (delta_time / 1000.0f); // frames per second
+            cur_frame = 0; // reset frame count
+            fps_timer = delta_time_clock; // reset timer
         }
 
         //            UPDATE LOOP
@@ -336,6 +336,8 @@ int main(){
 
         for(int i = 0; i < VBO_size; i+=3){
             auto v1=VBO[i],v2=VBO[i+1],v3=VBO[i+2];
+
+            if(PointIsOnRightSideOfLine(v1.position, v2.position, v3.position)>=0) continue;  //BACKFACE CULLING
 
             if(v1.position.z<0||v2.position.z<0||v3.position.z<0) continue;
 
